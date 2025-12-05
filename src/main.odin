@@ -26,6 +26,13 @@ Language :: enum {
 	TypeScript,
 	TOML,
 	YAML,
+  Python,
+  OCAML,
+}
+
+Paths :: struct {
+  ignore_list: [dynamic]string,
+  count_list: [dynamic]string
 }
 
 Stat :: struct {
@@ -40,7 +47,20 @@ Accumulation :: struct {
 	ignored_files: int,
 }
 
-accumulate :: proc(dir_path: string, accumulation: ^Accumulation) {
+human_num :: proc(num: int) -> string {
+  num := f32(num)
+  switch {
+  case 1000 <= num && num <1_000_000: return fmt.tprintf("%.1f K", num/1000)
+
+  case 1_000_000 <= num && num <1_000_000_000: return fmt.tprintf("%.1f M", num/1_000_000)
+
+  case num >= 1_000_000_000: return fmt.tprintf("%.1f B \n P.S. This is way too many lines you should rethink your life choices", num/1_000_000_000)
+
+  case: return fmt.tprintf("%.f", num)
+  }
+}
+
+accumulate :: proc(dir_path: string, accumulation: ^Accumulation, path_lists: ^Paths) {
 	dir, open_err := os.open(dir_path)
 
 	if open_err != nil {
@@ -65,9 +85,33 @@ accumulate :: proc(dir_path: string, accumulation: ^Accumulation) {
 	defer free(raw_data(files))
 
 	for file in files {
-		if file.is_dir {
-			accumulate(file.fullpath, accumulation)
 
+    in_ignore_list := false
+    for path in path_lists.ignore_list {
+      if path == file.fullpath {
+        in_ignore_list = true
+        break
+      }
+    }
+
+    in_count_list := false
+    for path in path_lists.count_list {
+      if path == file.fullpath {
+        in_count_list = true
+        break
+      }
+    }
+
+    if in_ignore_list {
+			accumulation.ignored_files += 1
+
+			continue
+    }
+
+		if file.is_dir {
+      if file.name[0] ==  '.' && !in_count_list { continue }
+
+			accumulate(file.fullpath, accumulation, path_lists)
 			continue
 		}
 
@@ -115,6 +159,10 @@ accumulate :: proc(dir_path: string, accumulation: ^Accumulation) {
 			language = .TOML
 		} else if strings.ends_with(file.name, ".yaml") || strings.ends_with(file.name, ".yml") {
 			language = .YAML
+		} else if strings.ends_with(file.name, ".py") {
+			language = .Python
+		} else if strings.ends_with(file.name, ".ml") {
+			language = .OCAML
 		} else {
 			accumulation.ignored_files += 1
 
@@ -173,15 +221,34 @@ PADDING :: 25
 
 main :: proc() {
 	if len(os.args) < 2 {
-		fmt.eprintln("usage:", os.args[0], "<..directories>")
+		fmt.eprintln("usage:", os.args[0], "<..directories>", "[-i] <files/directories to ignore>")
 		os.exit(1)
 	}
 
+  cwd := os.get_current_directory();
+
+  path_lists: Paths
+
 	accumulation: Accumulation
 
-	for dir_path in os.args[1:] {
-		accumulate(dir_path, &accumulation)
-	}
+  h_flag: bool = false
+  i_flag: bool = false
+
+	for arg in os.args[1:] {
+    if arg == "-i" { i_flag = true; continue}
+
+    if !h_flag && !i_flag {
+      append(&path_lists.count_list, arg)
+
+    } else if i_flag {
+      fullpath := fmt.tprintf("%s/%s", cwd, arg)
+      append(&path_lists.ignore_list, fullpath)
+    }
+  }
+
+  for dir_path in path_lists.count_list[0:] {
+    accumulate(fmt.tprintf("%s/%s", cwd, dir_path), &accumulation, &path_lists)
+  }
 
 	fmt.println("ignored", accumulation.ignored_files, "files")
 
@@ -209,17 +276,17 @@ main :: proc() {
 		language_name := reflect.enum_field_names(Language)[language]
 
 		fmt.printfln(
-			"%s%*s%d%*s%d%*s%d",
+			"%s%*s%s%*s%s%*s%s",
 			language_name,
 			PADDING - len(language_name),
 			"",
-			stat.files,
-			PADDING - digits_count(stat.files),
+			human_num(stat.files),
+			PADDING - len(human_num(stat.files)),
 			"",
-			stat.blank,
-			PADDING - digits_count(stat.blank),
+			human_num(stat.blank),
+			PADDING - len(human_num(stat.blank)),
 			"",
-			stat.code,
+			human_num(stat.code),
 		)
 	}
 
@@ -228,15 +295,15 @@ main :: proc() {
 	)
 
 	fmt.printfln(
-		"Sum:%*s%d%*s%d%*s%d",
+		"Sum:%*s%s%*s%s%*s%s",
 		PADDING - len("Sum:"),
 		"",
-		accumulation.sum.files,
-		PADDING - digits_count(accumulation.sum.files),
+		human_num(accumulation.sum.files),
+		PADDING - len(human_num(accumulation.sum.files)),
 		"",
-		accumulation.sum.blank,
-		PADDING - digits_count(accumulation.sum.blank),
+		human_num(accumulation.sum.blank),
+		PADDING - len(human_num(accumulation.sum.blank)),
 		"",
-		accumulation.sum.code,
+		human_num(accumulation.sum.code),
 	)
 }
