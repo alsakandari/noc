@@ -12,7 +12,6 @@ Language :: enum {
 	B,
 	Bat,
 	Bash,
-	Barq,
 	C,
 	C3,
 	CPP,
@@ -135,8 +134,6 @@ accumulate :: proc(dir_path: string, accumulation: ^Accumulation, path_lists: ^P
 			language = .B
 		} else if strings.ends_with(file.name, ".bat") {
 			language = .Bat
-		} else if strings.ends_with(file.name, ".bq") {
-			language = .Barq
 		} else if strings.ends_with(file.name, ".sh") {
 			language = .Bash
 		} else if strings.ends_with(file.name, ".fish") {
