@@ -27,6 +27,7 @@ Language :: enum {
 	YAML,
   Python,
   OCAML,
+  Java,
 }
 
 Paths :: struct {
@@ -53,7 +54,7 @@ human_num :: proc(num: int) -> string {
 
   case 1_000_000 <= num && num <1_000_000_000: return fmt.tprintf("%.1f M", num/1_000_000)
 
-  case num >= 1_000_000_000: return fmt.tprintf("%.1f B \n P.S. This is way too many lines you should rethink your life choices", num/1_000_000_000)
+  case num >= 1_000_000_000: return fmt.tprintf("%.1f B \n P.S. This is way too many lines, you should rethink your life choices", num/1_000_000_000)
 
   case: return fmt.tprintf("%.f", num)
   }
@@ -160,6 +161,8 @@ accumulate :: proc(dir_path: string, accumulation: ^Accumulation, path_lists: ^P
 			language = .Python
 		} else if strings.ends_with(file.name, ".ml") {
 			language = .OCAML
+		} else if strings.ends_with(file.name, ".java") {
+			language = .Java
 		} else {
 			accumulation.ignored_files += 1
 
