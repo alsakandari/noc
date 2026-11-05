@@ -67,14 +67,14 @@ accumulate :: proc(dir_path: string, accumulation: ^Accumulation, path_lists: ^P
 		os.exit(1)
 	}
 
-	if !os.is_dir(dir) {
+	if !os.is_dir(dir_path) {
 		fmt.eprintln("error: not a directory:", dir_path)
 		os.exit(1)
 	}
 
 	defer os.close(dir)
 
-	files, read_err := os.read_dir(dir, 0)
+	files, read_err := os.read_dir(dir, 0, context.allocator)
 
 	if read_err != nil {
 		fmt.eprintln("error: could not read directory:", dir_path)
@@ -107,7 +107,7 @@ accumulate :: proc(dir_path: string, accumulation: ^Accumulation, path_lists: ^P
 			continue
     }
 
-		if file.is_dir {
+		if file.type == .Directory {
       if file.name[0] ==  '.' && !in_count_list { continue }
 
 			accumulate(file.fullpath, accumulation, path_lists)
@@ -166,9 +166,9 @@ accumulate :: proc(dir_path: string, accumulation: ^Accumulation, path_lists: ^P
 			continue
 		}
 
-		file_bytes, read_file_success := os.read_entire_file(file.fullpath)
+		file_bytes, read_err := os.read_entire_file_from_path(file.fullpath, context.allocator)
 
-		if !read_file_success {
+		if read_err != nil {
 			fmt.eprintln("error: could not read file:", file.fullpath)
 			os.exit(1)
 		}
@@ -222,7 +222,11 @@ main :: proc() {
 		os.exit(1)
 	}
 
-  cwd := os.get_current_directory();
+  cwd, cwd_err := os.get_working_directory(context.allocator);
+	if cwd_err != nil {
+		fmt.eprintln("error: could not get current working directory")
+		os.exit(1)
+	}
 
   path_lists: Paths
 
